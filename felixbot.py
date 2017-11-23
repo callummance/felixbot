@@ -39,15 +39,13 @@ class Bot:
     def write_csv(self, matches):
         with open(self.conf['ResultsCSV'], 'w') as csvfile:
             csvwriter = csv.writer(csvfile, delimiter=',', lineterminator='\n')
-            csvwriter.writerow(["Number",
-                                "Name",
+            csvwriter.writerow(["Name",
                                 "Email",
                                 "Request",
                                 "Fulfilled by (name)",
                                 "Fulfilled by (email)"])
             for p, m in matches:
-                csvwriter.writerow([m["number"],
-                                    m["name"],
+                csvwriter.writerow([m["name"],
                                     m["email"],
                                     m["request"],
                                     p["name"],

@@ -18,8 +18,7 @@ class Matchmaker:
 
     def add_participant(self, from_field, request):
         new_participant = {
-            "request": re.sub('[\n\r]', ' ', request),
-            "number": len(self.participants) + 1
+            "request": re.sub('[\n\r]', ' ', request)
         }
         if '<' in from_field:
             split = from_field.split('<')
@@ -47,7 +46,20 @@ class Matchmaker:
 
     def make_matches(self):
         matches = []
-        participant_matches = list(self.participants)
+        participant_list_clone = list(self.participants)
+
+        #Drunken salesman algorithm
+        first_participant = participant_list_clone.pop()
+        current_participant = first_participant
+
+        while len(participant_list_clone):
+            next_participant = participant_list_clone[random.randint(0, len(participant_list_clone) - 1)]
+            participant_list_clone.remove(next_participant)
+            matches.append((current_participant, next_participant))
+            current_participant = next_participant
+        matches.append((current_participant, first_participant))
+
+        """
         for participant in self.participants:
             pot_match = participant_matches[random.randint(0, len(participant_matches) - 1)]
             while pot_match["number"] == participant["number"]:
@@ -61,6 +73,7 @@ class Matchmaker:
                     return []
                 pot_match = participant_matches[random.randint(0, len(participant_matches) - 1)]
             matches.append((participant, pot_match))
+            """
 
         with open(self.results_file, "w+") as f:
             json.dump(matches, f)

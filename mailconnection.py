@@ -91,7 +91,7 @@ class MailServer:
 
     def send_matches(self, matches_list):
         for participant, match in matches_list:
-            message = "You have been matched against participant nyumber " + str(match["number"])
+            message = "You have been matched against a challenger known as " + str(match["name"])
             message += ", who has requested '" + match["request"] + "'. Happy drawing nya~~"
 
             self.send_mail(message, participant["email"])
@@ -123,18 +123,22 @@ class MailServer:
             email_message = email.message_from_bytes(data[0][1])
 
             sender = email_message.get('From')
+            if sender == None:
+                sender = "Unknown"
             payload = ""
 
-            if email_message.is_multipart():
-                for part in email_message.walk():
-                    ctype = part.get_content_type()
-                    cdispo = str(part.get('Content-Disposition'))
-                    if ctype == 'text/plain' and 'attachment' not in cdispo:
-                        payload = part.get_payload(decode=True)
-                        break
-            else:
-                payload = email_message.get_payload(decode=True)
+            subject = email_message.get('Subject')
+            if subject.lower() == self.subject_filter.lower():
+                if email_message.is_multipart():
+                    for part in email_message.walk():
+                        ctype = part.get_content_type()
+                        cdispo = str(part.get('Content-Disposition'))
+                        if ctype == 'text/plain' and 'attachment' not in cdispo:
+                            payload = part.get_payload(decode=True)
+                            break
+                else:
+                    payload = email_message.get_payload(decode=True)
 
-    #       Got email details, add it to matchmaker
-            status, p = matchmaker.add_participant(sender, payload.decode("unicode_escape"))
-            self.send_confirm(status, p["email"])
+                #Got email details, add it to matchmaker
+                status, p = matchmaker.add_participant(sender, payload.decode("unicode_escape"))
+                self.send_confirm(status, p["email"])
