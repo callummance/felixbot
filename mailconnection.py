@@ -64,6 +64,7 @@ class MailServer:
                 print ("could not send email due to error:")
                 print(e)
                 self.connect_smtp()
+                continue
             break
 
     def send_admin(self, file, text):
