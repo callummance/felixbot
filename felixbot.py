@@ -1,3 +1,5 @@
+import os
+
 import mailconnection
 import matchmaker
 
@@ -29,12 +31,18 @@ class Bot:
 
             if self.should_match():
                 matches = self.mm.make_matches()
-                self.conn.send_matches(matches)
+                if not self.has_already_run():
+                    self.conn.send_matches(matches)
+                else:
+                    print("Matches have already been sent out, bot will now terminate.")
                 self.write_csv(matches)
                 return
 
     def should_match(self):
         return self.confirm_date < time.time()
+
+    def has_already_run(self):
+        return os.path.exists(self.conf['ResultsCSV'])
 
     def write_csv(self, matches):
         with open(self.conf['ResultsCSV'], 'w') as csvfile:
