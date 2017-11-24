@@ -57,7 +57,14 @@ class MailServer:
         msg.attach(MIMEText(text, "plain"))
         msg.attach(MIMEText(html, "html"))
 
-        self.smtp.sendmail(self.login, target_email, msg.as_string())
+        for i in range(10):
+            try:
+                self.smtp.sendmail(self.login, target_email, msg.as_string())
+            except smtplib.SMTPServerDisconnected as e:
+                print ("could not send email due to error:")
+                print(e)
+                self.connect_smtp()
+            break
 
     def send_admin(self, file, text):
         msg = MIMEMultipart()
@@ -102,6 +109,13 @@ class MailServer:
         self.mail = imaplib.IMAP4_SSL(self.imap_address, self.imap_port)
         self.mail.login(self.login, self.password)
         print("Done.")
+        print("Connecting to SMTP server " + self.smtp_address)
+        self.smtp = smtplib.SMTP(self.smtp_address, self.smtp_port)
+        self.smtp.starttls()
+        self.smtp.login(self.login, self.password)
+        print("Done.")
+
+    def connect_smtp(self):
         print("Connecting to SMTP server " + self.smtp_address)
         self.smtp = smtplib.SMTP(self.smtp_address, self.smtp_port)
         self.smtp.starttls()
