@@ -106,14 +106,13 @@ class MailServer:
             print("Sent match to %s" % participant["email"])
 
     def connect(self):
+        connect_imap()
+        connect_smtp()
+
+    def connect_imap(self):
         print("Connecting to IMAP4 server " + self.imap_address)
         self.mail = imaplib.IMAP4_SSL(self.imap_address, self.imap_port)
         self.mail.login(self.login, self.password)
-        print("Done.")
-        print("Connecting to SMTP server " + self.smtp_address)
-        self.smtp = smtplib.SMTP(self.smtp_address, self.smtp_port)
-        self.smtp.starttls()
-        self.smtp.login(self.login, self.password)
         print("Done.")
 
     def connect_smtp(self):
@@ -124,36 +123,44 @@ class MailServer:
         print("Done.")
 
     def update_mail(self, matchmaker):
-        self.mail.select()
-        sub_filter = '(SUBJECT "' + self.subject_filter + '")'
-        typ, data = self.mail.search(None, sub_filter)
+        for i in range(10):
+            try:
+                self.mail.select()
+                sub_filter = '(SUBJECT "' + self.subject_filter + '")'
+                typ, data = self.mail.search(None, sub_filter)
 
-        for num in data[0].split():
-            if str(num, "utf-8") in self.processed_mails:
+                for num in data[0].split():
+                    if str(num, "utf-8") in self.processed_mails:
+                        continue
+                    self.processed_mails.append(str(num, "utf-8)"))
+                    with open("processed.json", "w") as f:
+                        json.dump(self.processed_mails, f)
+                    typ, data = self.mail.fetch(num, '(RFC822)')
+                    email_message = email.message_from_bytes(data[0][1])
+
+                    sender = email_message.get('From')
+                    if sender == None:
+                        sender = "Unknown"
+                    payload = ""
+
+                    subject = email_message.get('Subject')
+                    if subject.lower() == self.subject_filter.lower():
+                        if email_message.is_multipart():
+                            for part in email_message.walk():
+                                ctype = part.get_content_type()
+                                cdispo = str(part.get('Content-Disposition'))
+                                if ctype == 'text/plain' and 'attachment' not in cdispo:
+                                    payload = part.get_payload(decode=True)
+                                    break
+                        else:
+                            payload = email_message.get_payload(decode=True)
+
+                        #Got email details, add it to matchmaker
+                        status, p = matchmaker.add_participant(sender, payload.decode("unicode_escape"))
+                        self.send_confirm(status, p["email"])
+            except smtplib.SMTPServerDisconnected as e:
+                print ("could not check email due to error:")
+                print(e)
+                self.connect_imap()
                 continue
-            self.processed_mails.append(str(num, "utf-8)"))
-            with open("processed.json", "w") as f:
-                json.dump(self.processed_mails, f)
-            typ, data = self.mail.fetch(num, '(RFC822)')
-            email_message = email.message_from_bytes(data[0][1])
-
-            sender = email_message.get('From')
-            if sender == None:
-                sender = "Unknown"
-            payload = ""
-
-            subject = email_message.get('Subject')
-            if subject.lower() == self.subject_filter.lower():
-                if email_message.is_multipart():
-                    for part in email_message.walk():
-                        ctype = part.get_content_type()
-                        cdispo = str(part.get('Content-Disposition'))
-                        if ctype == 'text/plain' and 'attachment' not in cdispo:
-                            payload = part.get_payload(decode=True)
-                            break
-                else:
-                    payload = email_message.get_payload(decode=True)
-
-                #Got email details, add it to matchmaker
-                status, p = matchmaker.add_participant(sender, payload.decode("unicode_escape"))
-                self.send_confirm(status, p["email"])
+            break
